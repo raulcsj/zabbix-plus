@@ -5,7 +5,7 @@ plugins {
 }
 
 allprojects {
-    group = "com.csj.framework" // Using CSJ as requested
+    group = "io.zabbixplus.framework"
     version = "0.0.1-SNAPSHOT"
 
     repositories {
