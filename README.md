@@ -180,7 +180,216 @@ Follow these steps to create and integrate a new plugin.
 1.  **Build JAR:** Build your plugin project to produce a JAR file (e.g., using `./gradlew build`).
 2.  **Deploy:** Copy the generated plugin JAR file into the `plugins` directory of your Zabbix Plus Framework main application deployment. The `core` application will load it on startup.
 
-## 6. Main UI (`main-ui`) Integration
+## 6. Packaging and Deployment
+
+This section outlines the process for packaging the Zabbix Plus Framework application and deploying it as a service on various operating systems.
+
+### Prerequisites (General)
+
+Before you begin, ensure you have the following installed:
+
+*   **Java Development Kit (JDK):** Version 17 or higher.
+*   **Gradle:** The project uses the Gradle wrapper (`gradlew` or `gradlew.bat`), so a separate Gradle installation is typically not required. If you encounter issues, ensure you have a compatible Gradle version.
+*   **Administrative/Root Access:** Required for installing services on the respective operating systems.
+
+Specific operating system sections below may have additional prerequisites.
+
+### Packaging the Application
+
+The core application is packaged as an executable JAR file.
+
+1.  **Build the Core Application JAR:**
+    Navigate to the root project directory and run the following command:
+    ```bash
+    ./gradlew :core:bootJar
+    ```
+    Alternatively, you can run `./gradlew :core:build`.
+    The resulting JAR file will typically be found in `core/build/libs/` and named something like `core-<version>.jar` (e.g., `core-0.0.1-SNAPSHOT.jar`). This is the main application JAR.
+
+2.  **Plugins:**
+    Plugins are developed and built as separate JAR files. Once built, these plugin JARs should be placed into a `plugins` directory located in the application's installation/runtime directory. The framework will load them from there. Refer to Section 5 ("Plugin Development Guide") for details on creating plugins.
+
+### Deploying as a Service
+
+#### Database Setup (Important for First Run)
+
+Before deploying the service for the first time, ensure your database is set up and the application can connect to it.
+*   **Create Database:** Create a database (e.g., `zabbixplus_dev`).
+*   **Configure Connection:** Update `core/src/main/resources/application.properties` (or its YAML equivalent, or use environment variables) with your database connection details:
+    *   `spring.datasource.url`
+    *   `spring.datasource.username`
+    *   `spring.datasource.password`
+*   **Schema:** The `example_table` (with columns `id` SERIAL PRIMARY KEY, `name` VARCHAR(255), `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP) needs to exist for the example plugin. For production, a proper database migration tool like Liquibase or Flyway is recommended to manage your schema. This setup is typically done once before the first deployment.
+
+#### Windows
+
+Comprehensive instructions and scripts for running the application as a Windows service are provided in the `deployment/windows/` directory.
+
+*   **Key Files:**
+    *   `deployment/windows/README_Windows_Service.txt`: Detailed instructions.
+    *   `deployment/windows/zabbix-plus-framework.bat`: Script to launch the Java application (customize JAR name, JAVA_OPTS here).
+    *   `deployment/windows/install-service.bat`: Script to install the service using `sc.exe`.
+    *   `deployment/windows/uninstall-service.bat`: Script to uninstall the service.
+
+*   **General Steps:**
+    1.  **Package & Prepare:** Build the `core-<version>.jar`. Create an installation directory (e.g., `C:\ZabbixPlusFramework`).
+        *   Copy `core-<version>.jar` to this directory.
+        *   Create a `plugins` subdirectory and place your plugin JARs into it.
+        *   Copy all files from the `deployment/windows/` directory into your installation directory.
+    2.  **Customize Scripts:**
+        *   Edit `zabbix-plus-framework.bat` to set the correct `APP_JAR` (your `core-<version>.jar` filename) and any `JAVA_OPTS`.
+        *   Edit `install-service.bat` to set `APP_ROOT_DIR` to your installation directory path, and customize `SERVICE_NAME`, `DISPLAY_NAME`, and `LOG_DIR` as needed.
+    3.  **Install Service:** Run `install-service.bat` as an Administrator.
+    4.  **Manage Service:** Use `sc start/stop/query %SERVICE_NAME%` or the Services management console (`services.msc`).
+
+*   **Logging:** The `README_Windows_Service.txt` strongly recommends using a service wrapper like **NSSM (Non-Sucking Service Manager)** (https://nssm.cc/) for robust log redirection and management, as `sc.exe` has limitations with batch scripts.
+
+#### Linux (systemd)
+
+The framework can be run as a systemd service on Linux distributions.
+
+*   **Key File:**
+    *   `deployment/systemd/zabbix-plus-framework.service`: A template systemd service unit file.
+
+*   **Instructions:**
+    1.  **Package & Prepare:**
+        *   Build the `core-<version>.jar`.
+        *   Create an installation directory (e.g., `/opt/zabbix-plus-framework`).
+        *   Place the `core-<version>.jar` into this directory.
+        *   Create `plugins` and `logs` subdirectories within the installation directory:
+            ```bash
+            sudo mkdir -p /opt/zabbix-plus-framework/plugins
+            sudo mkdir -p /opt/zabbix-plus-framework/logs
+            ```
+        *   Copy your plugin JARs into `/opt/zabbix-plus-framework/plugins/`.
+        *   Ensure your database is set up as per "Database Setup" above.
+    2.  **Create Startup Script:**
+        Create a startup script, for example, at `/opt/zabbix-plus-framework/bin/zabbix-plus-framework.sh`:
+        ```bash
+        #!/bin/bash
+        APP_DIR="$(cd "$(dirname "$0")/.." && pwd)" # Assumes script is in a 'bin' subdirectory
+        JAR_NAME="core-0.0.1-SNAPSHOT.jar" # !!! CHANGE THIS to your actual core JAR filename !!!
+        JAVA_OPTS="-Xmx512m -Dfile.encoding=UTF-8" # Add other Java options, ensure UTF-8
+        LOG_DIR="${APP_DIR}/logs"
+        PID_FILE="${APP_DIR}/app.pid"
+
+        # Ensure the user running the service has write access to APP_DIR and LOG_DIR
+        mkdir -p "${LOG_DIR}"
+        cd "${APP_DIR}"
+
+        echo "Starting Zabbix Plus Framework..." >> "${LOG_DIR}/stdout.log"
+        nohup java $JAVA_OPTS -jar "${JAR_NAME}" >> "${LOG_DIR}/stdout.log" 2>> "${LOG_DIR}/stderr.log" &
+        echo $! > "${PID_FILE}"
+        echo "Zabbix Plus Framework started with PID $(cat ${PID_FILE}). Logs in ${LOG_DIR}" >> "${LOG_DIR}/stdout.log"
+        ```
+        *   **Important:**
+            *   Modify `JAR_NAME` in the script to match your application's JAR file name.
+            *   Set appropriate `JAVA_OPTS`.
+            *   Make the script executable: `sudo chmod +x /opt/zabbix-plus-framework/bin/zabbix-plus-framework.sh`.
+    3.  **Configure systemd Service File:**
+        *   Copy the provided `deployment/systemd/zabbix-plus-framework.service` file to `/etc/systemd/system/zabbix-plus-framework.service`.
+            ```bash
+            sudo cp deployment/systemd/zabbix-plus-framework.service /etc/systemd/system/zabbix-plus-framework.service
+            ```
+        *   Edit `/etc/systemd/system/zabbix-plus-framework.service`:
+            *   Set `User` and `Group` to an appropriate user/group (e.g., a dedicated `zabbixplus` user, or `youruser`). This user needs write access to the installation and log directories.
+            *   Update `WorkingDirectory` to your installation directory (e.g., `/opt/zabbix-plus-framework`).
+            *   Update `ExecStart` to point to your startup script: `ExecStart=/opt/zabbix-plus-framework/bin/zabbix-plus-framework.sh`.
+            *   Update `PIDFile` to point to the `app.pid` created by the script: `PIDFile=/opt/zabbix-plus-framework/app.pid`.
+            *   Remove or comment out the `Environment` lines for `JAVA_OPTS` and `APP_JAR_PATH` if you are defining these in the `.sh` script.
+    4.  **Manage Service:**
+        *   Reload systemd configuration: `sudo systemctl daemon-reload`
+        *   Enable the service to start on boot: `sudo systemctl enable zabbix-plus-framework`
+        *   Start the service: `sudo systemctl start zabbix-plus-framework`
+        *   Check status: `sudo systemctl status zabbix-plus-framework`
+        *   Stop the service: `sudo systemctl stop zabbix-plus-framework`
+    5.  **View Logs:**
+        *   Using journalctl: `sudo journalctl -u zabbix-plus-framework`
+        *   Directly from log files: Check `stdout.log` and `stderr.log` in the `logs` directory you configured (e.g., `/opt/zabbix-plus-framework/logs/`).
+
+#### macOS (launchd)
+
+The framework can be run as a launchd service on macOS.
+
+*   **Key File:**
+    *   `deployment/launchd/io.zabbixplus.framework.plist`: A template launchd property list file.
+
+*   **Instructions:**
+    1.  **Package & Prepare:**
+        *   Build the `core-<version>.jar`.
+        *   Create an installation directory. Common locations:
+            *   System-wide: `/opt/zabbix-plus-framework`
+            *   User-specific: `~/Library/Application Support/ZabbixPlusFramework`
+            (Let's use `/opt/zabbix-plus-framework` for this example, adjust as needed).
+        *   Place `core-<version>.jar` into this directory.
+        *   Create `plugins` and `logs` subdirectories:
+            ```bash
+            sudo mkdir -p /opt/zabbix-plus-framework/plugins # Use sudo if system-wide
+            sudo mkdir -p /opt/zabbix-plus-framework/logs   # Use sudo if system-wide
+            # If user-specific, omit sudo and adjust path e.g. mkdir -p ~/Library/Application\ Support/ZabbixPlusFramework/plugins
+            ```
+        *   Copy plugin JARs into the `plugins` directory.
+        *   Ensure your database is set up as per "Database Setup" above.
+    2.  **Create Startup Script:**
+        Create a startup script, e.g., `/opt/zabbix-plus-framework/bin/zabbix-plus-framework.sh` (similar to the Linux one):
+        ```bash
+        #!/bin/bash
+        APP_DIR="$(cd "$(dirname "$0")/.." && pwd)" # Assumes script is in a 'bin' subdirectory
+        JAR_NAME="core-0.0.1-SNAPSHOT.jar" # !!! CHANGE THIS to your actual core JAR filename !!!
+        JAVA_OPTS="-Xmx512m -Dfile.encoding=UTF-8" # Add other Java options, ensure UTF-8
+        # LOG_DIR is not strictly needed here if using .plist for redirection, but good for consistency
+        # LOG_DIR="${APP_DIR}/logs"
+        # mkdir -p "${LOG_DIR}" # Ensure this directory exists if .plist redirects here
+
+        cd "${APP_DIR}"
+
+        # For launchd, direct output is often better than backgrounding with &
+        # The .plist file will handle stdout/stderr redirection.
+        exec java $JAVA_OPTS -jar "${JAR_NAME}"
+        ```
+        *   **Important:**
+            *   Modify `JAR_NAME` to your application's JAR file.
+            *   Set `JAVA_OPTS`.
+            *   Make the script executable: `sudo chmod +x /opt/zabbix-plus-framework/bin/zabbix-plus-framework.sh` (use `sudo` if in `/opt`).
+    3.  **Configure launchd `.plist` File:**
+        *   Decide service scope:
+            *   User agent (runs when user logs in): `~/Library/LaunchAgents/io.zabbixplus.framework.plist`
+            *   System daemon (runs on boot, requires root): `/Library/LaunchDaemons/io.zabbixplus.framework.plist`
+        *   Copy `deployment/launchd/io.zabbixplus.framework.plist` to the chosen location. Example for system daemon:
+            ```bash
+            sudo cp deployment/launchd/io.zabbixplus.framework.plist /Library/LaunchDaemons/io.zabbixplus.framework.plist
+            ```
+        *   Edit the `.plist` file (e.g., `sudo nano /Library/LaunchDaemons/io.zabbixplus.framework.plist`):
+            *   Update `Label` to be unique (e.g., `io.zabbixplus.framework`).
+            *   Modify `ProgramArguments`: The first string should be the full path to your startup script (e.g.,`/opt/zabbix-plus-framework/bin/zabbix-plus-framework.sh`).
+            *   Set `WorkingDirectory` to your installation directory (e.g., `/opt/zabbix-plus-framework`).
+            *   Set `StandardOutPath` to your desired stdout log file (e.g., `/opt/zabbix-plus-framework/logs/stdout.log`).
+            *   Set `StandardErrorPath` to your desired stderr log file (e.g., `/opt/zabbix-plus-framework/logs/stderr.log`).
+            *   If running as a system daemon (`/Library/LaunchDaemons`), you might need to add a `UserName` key specifying the user to run as (e.g., `<key>UserName</key><string>youruser</string>`). This user needs write access to the installation and log directories.
+            *   Ensure `KeepAlive` is set to `true` or as desired for automatic restarts.
+    4.  **Manage Service:**
+        *   **Load:**
+            *   LaunchAgent: `launchctl load ~/Library/LaunchAgents/io.zabbixplus.framework.plist`
+            *   LaunchDaemon: `sudo launchctl load /Library/LaunchDaemons/io.zabbixplus.framework.plist`
+        *   **Start (often automatic on load, but can be explicit):**
+            *   `launchctl start io.zabbixplus.framework` (use `sudo` if it's a LaunchDaemon and you're not root)
+        *   **Stop:**
+            *   `launchctl stop io.zabbixplus.framework` (use `sudo` if LaunchDaemon; may not stop if KeepAlive is aggressive)
+        *   **Unload (to prevent automatic startup):**
+            *   LaunchAgent: `launchctl unload ~/Library/LaunchAgents/io.zabbixplus.framework.plist`
+            *   LaunchDaemon: `sudo launchctl unload /Library/LaunchDaemons/io.zabbixplus.framework.plist`
+    5.  **View Logs:** Check the files specified in `StandardOutPath` and `StandardErrorPath`. Console.app can also show launchd logs.
+
+### Configuration Notes (General)
+
+*   **Application Configuration:** The primary application configuration (e.g., database connections, server port) is typically managed via `application.properties` or `application.yml`. This file can be placed in a `config` directory alongside the `core-<version>.jar`, or directly next to the JAR. For service deployments, it's common to use an externalized configuration file. You can specify its location using the `spring.config.location` Java system property in `JAVA_OPTS`:
+    ```
+    -Dspring.config.location=file:/path/to/your/application.properties
+    ```
+*   **Plugin Configuration:** Each plugin can have its own `config.yml` within its JAR resources, accessible via `PluginContext`. See Section 5 ("Plugin Development Guide").
+*   **Plugins Directory:** Ensure the `plugins` directory is present in the `WorkingDirectory` of the application and contains all your plugin JARs.
+
+## 7. Main UI (`main-ui`) Integration
 
 The `main-ui` is a Vue.js application designed to provide a dynamic frontend for the framework and its plugins.
 
@@ -209,7 +418,7 @@ The `main-ui` is a Vue.js application designed to provide a dynamic frontend for
         2.  Place them into `main-ui/src/main/frontend/src/components/plugins/`.
         3.  Globally register the component(s) in `main-ui/src/main/frontend/src/main.js` with the name(s) that the plugin will provide in its `uiMetadata.mainComponent`.
 
-## 7. Example Plugin (`example-plugin`)
+## 8. Example Plugin (`example-plugin`)
 
 The `example-plugin` serves as a working demonstration of the framework's plugin capabilities.
 
@@ -225,61 +434,34 @@ The `example-plugin` serves as a working demonstration of the framework's plugin
     *   The UI allows fetching a list of records from the database (via its backend API).
     *   The UI allows adding new records to the database (via its backend API). The backend currently only processes the "name" field.
 
-## 8. Setup & Running (Conceptual)
+## 9. Developer Setup and Running
 
-### Prerequisites
-*   Java Development Kit (JDK), version 17 or higher.
-*   Node.js (for `main-ui`), version 18 or higher, with npm or yarn.
-*   Gradle (version compatible with the project, typically uses Gradle Wrapper).
-*   A PostgreSQL database (or adapt `ExampleTableService` and configuration for another SQL database).
+This section provides guidance for developers looking to set up a local development environment. For deployment as a service, see Section 6.
 
-### Backend (`core` and plugins)
-1.  **Clone Repository:** `git clone <repository-url>`
-2.  **Database Setup:**
-    *   Create a database (e.g., `zabbixplus_dev`).
-    *   Configure database connection details in `core/src/main/resources/application.properties` (or its YAML equivalent). You'll likely need to set `spring.datasource.url`, `spring.datasource.username`, `spring.datasource.password`.
-    *   The `example_table` (with columns `id` SERIAL PRIMARY KEY, `name` VARCHAR(255), `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP) needs to exist. A Liquibase/Flyway setup would be ideal for managing schema, but is not currently detailed.
-3.  **Build:**
-    *   Navigate to the project root directory.
-    *   Run `./gradlew clean build`. This will build all modules, including `core` and `example-plugin`.
-4.  **Run `core` Application:**
-    *   Execute `java -jar core/build/libs/core-<version>.jar`. Replace `<version>` with the actual version.
-5.  **Deploy Plugins:**
-    *   Create a `plugins` directory in the same location where you run the `core` JAR.
-    *   Copy plugin JARs (e.g., `example-plugin/build/libs/example-plugin-<version>.jar`) into this `plugins` directory.
-    *   Restart the `core` application to load the plugins.
+### Prerequisites (Development)
+*   **Java Development Kit (JDK):** Version 17 or higher.
+*   **Node.js:** Version 18 or higher, with npm or yarn (for `main-ui` development).
+*   **Gradle:** The project uses the Gradle wrapper.
+*   **PostgreSQL Database:** Or adapt `ExampleTableService` and configuration for another SQL database. The initial database setup (creating the database and tables) is required.
 
-### Frontend (`main-ui`)
-1.  **Navigate to UI Directory:** `cd main-ui/src/main/frontend/`
-2.  **Install Dependencies:** `npm install` (or `yarn install`).
-3.  **Integrate Plugin Vue Components (Manual Step):**
-    *   For each plugin providing UI (like `example-plugin`):
-        *   Copy its Vue component files (e.g., `ExamplePluginDashboard.vue` from `example-plugin/src/main/frontend/`) to `main-ui/src/main/frontend/src/components/plugins/`.
-        *   Register these components globally in `main-ui/src/main/frontend/src/main.js`.
-4.  **Run Development Server:**
-    *   `npm run serve` (or `yarn serve`).
-    *   This will typically start the Vue app on `http://localhost:8081` (or another port).
-    *   Ensure `vue.config.js` in `main-ui/src/main/frontend/` has the correct `devServer.proxy` settings to forward API requests (like `/api/*`) to your backend server (usually running on `http://localhost:8080`).
-    Example `vue.config.js` proxy:
-    ```javascript
-    module.exports = {
-      devServer: {
-        port: 8081, // Or your preferred frontend port
-        proxy: {
-          '/api': {
-            target: 'http://localhost:8080', // Your backend server
-            ws: true,
-            changeOrigin: true
-          }
-        }
-      }
-    };
-    ```
-5.  **Build for Production:**
-    *   `npm run build` (or `yarn build`).
-    *   The static assets will be generated in `main-ui/src/main/frontend/dist/`. These assets should be served by the `core` application (Spring Boot is typically configured to serve static content from `classpath:/static/` or `classpath:/public/`; ensure the `main-ui` build output is copied to `core/src/main/resources/static/` or similar before `core` is packaged).
+### Backend (`core` and plugins) - Development
+1.  **Clone Repository.**
+2.  **Database Setup:** As described in Section 6 under "Database Setup (Important for First Run)".
+3.  **Build:** `./gradlew clean build` (builds all modules).
+4.  **Run `core` Application (IDE or Command Line):**
+    *   From your IDE: Run the `CoreApplication.java` main method.
+    *   Command Line: `java -jar core/build/libs/core-<version>.jar`.
+5.  **Plugins:** Ensure plugin JARs are in the `./plugins` directory relative to where `core` is run, or that your IDE includes them in the classpath if running directly.
 
-## 9. Future Enhancements (Micro-Frontend Vision)
+### Frontend (`main-ui`) - Development
+1.  **Navigate:** `cd main-ui/src/main/frontend/`
+2.  **Install Dependencies:** `npm install`
+3.  **Integrate Plugin Vue Components:** Follow "Option A" as per Section 5 ("Plugin Development Guide") and Section 7 ("Main UI (`main-ui`) Integration"). This involves copying/linking Vue files to `main-ui` and registering them.
+4.  **Run Dev Server:** `npm run serve`. This usually starts on `http://localhost:8081`.
+    *   Configure `vue.config.js` for proxying API requests to the backend (typically `http://localhost:8080`).
+5.  **Production Build for UI:** `npm run build`. Output goes to `main-ui/src/main/frontend/dist/`. For the `core` app to serve these, they should be copied to `core/src/main/resources/static/` before packaging the `core` JAR.
+
+## 10. Future Enhancements (Micro-Frontend Vision)
 
 The current "Option A" for UI integration (where `main-ui` bundles plugin Vue components) provides dynamic rendering based on metadata but requires `main-ui` to be aware of these components at build time.
 
@@ -293,7 +475,7 @@ Future enhancements could move towards a true micro-frontend architecture ("Opti
     *   Technology diversity (though sticking to Vue for consistency is simpler).
 *   **Challenges:** Shared dependency management, routing integration, inter-frontend communication, build complexity. Tools like Webpack Module Federation could be explored.
 
-## 10. Contribution Guidelines
+## 11. Contribution Guidelines
 
 *   Fork the repository.
 *   Create a new branch for your feature or bug fix.
