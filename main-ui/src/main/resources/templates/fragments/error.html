@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+    <div th:fragment="plugin-not-found">
+        <h2>Plugin UI Not Available</h2>
+        <p style="color: red;" th:text="${errorMessage ?: 'The requested plugin UI could not be loaded or the plugin was not found.'}">Error details.</p>
+        <p>Please check if the plugin is correctly installed and enabled.</p>
+    </div>
+
+    <div th:fragment="general-error">
+        <h2>Error</h2>
+        <p style="color: red;" th:text="${errorMessage ?: 'An unspecified error occurred.'}">Error details.</p>
+    </div>
+</body>
+</html>

@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title th:text="${pageTitle != null ? pageTitle + ' - CSJ Framework' : 'CSJ Framework'}">CSJ Framework</title>
+    <!-- Basic CSS, can be expanded -->
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; display: flex; flex-direction: column; min-height: 100vh; }
+        header { background-color: #333; color: white; padding: 1em; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+        header h1 { margin: 0; font-size: 1.5em; }
+        .app-container { display: flex; flex-grow: 1; }
+        .sidebar { width: 220px; background-color: #f4f4f4; padding: 1em; flex-shrink: 0; border-right: 1px solid #ddd; }
+        .sidebar h3 { margin-top: 0; }
+        .sidebar ul { list-style-type: none; padding: 0; }
+        .sidebar ul li a { text-decoration: none; color: #333; display: block; padding: 0.5em 0; }
+        .sidebar ul li a:hover { color: #007bff; }
+        .sidebar ul li a i { margin-right: 8px; } /* For icons */
+        .main-content { flex-grow: 1; padding: 1.5em; }
+        footer { background-color: #eee; color: #333; text-align: center; padding: 0.5em; border-top: 1px solid #ddd; flex-shrink: 0; font-size: 0.9em;}
+    </style>
+</head>
+<body>
+    <header>
+        <h1>CSJ Micro-Frontend Framework</h1>
+        <!-- Top navigation can be added here if needed -->
+    </header>
+
+    <div class="app-container">
+        <div class="sidebar">
+            <h3>Navigation</h3>
+            <ul>
+                <li><a th:href="@{/}"><i class="fas fa-home"></i>Home</a></li>
+                <li th:each="item : ${navItems}">
+                    <a th:href="@{${item.path}}" th:title="${item.name}">
+                        <i th:if="${item.icon}" th:class="${item.icon}"></i> <!-- Basic icon support -->
+                        <span th:text="${item.name}">Plugin Nav</span>
+                    </a>
+                </li>
+                <li><hr/></li>
+                <li><a th:href="@{/ui/plugins/list}"><i class="fas fa-cogs"></i>View Loaded Plugins</a></li>
+                 <li><a th:href="@{/ui-test}"><i class="fas fa-vial"></i>UI Test Page</a></li>
+            </ul>
+        </div>
+
+        <div class="main-content">
+            <!-- Conditional inclusion of content fragment -->
+            <th:block th:if="${pageContentFragment != null}">
+                <div th:include="${pageContentFragment}">
+                    <!-- Dynamic content will be loaded here -->
+                </div>
+            </th:block>
+            <th:block th:unless="${pageContentFragment != null}">
+                 <h2>Welcome!</h2> <!-- Default content if no fragment specified -->
+                <p>This is the main shell. No specific content fragment was loaded.</p>
+            </th:block>
+        </div>
+    </div>
+    <footer>
+        <p>&copy; CSJ Framework. All rights reserved.</p>
+    </footer>
+</body>
+</html>
