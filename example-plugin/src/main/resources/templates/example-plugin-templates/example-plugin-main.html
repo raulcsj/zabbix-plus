@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+    <div th:fragment="content">
+        <h2>Content from SimpleExamplePlugin</h2>
+        <p>This is the main UI entry point for the SimpleExamplePlugin.</p>
+        <p>If you see this, the plugin's Thymeleaf fragment was successfully loaded and rendered!</p>
+        <p>Plugin Name from context (if passed): <span th:text="${currentPluginName ?: 'N/A'}">Plugin Name</span></p>
+    </div>
+</body>
+</html>

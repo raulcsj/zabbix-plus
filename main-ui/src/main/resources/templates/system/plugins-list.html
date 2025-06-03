@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Loaded Plugins</title>
+    <style>
+        table { border-collapse: collapse; width: 80%; margin: 20px auto; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        body { font-family: Arial, sans-serif; }
+        h1 { text-align: center; }
+        .container { width: 90%; margin: auto; }
+        a { text-decoration: none; color: #007bff; }
+        a:hover { text-decoration: underline; }
+        .no-plugins { color: #777; font-style: italic; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Loaded Plugins Information</h1>
+        <p>Scanning for plugins in directory: <strong th:text="${pluginDirectory}">./plugins</strong></p>
+
+        <div th:if="${loadedPlugins == null or loadedPlugins.isEmpty()}">
+            <p class="no-plugins">No plugins currently loaded.</p>
+        </div>
+
+        <table th:unless="${loadedPlugins == null or loadedPlugins.isEmpty()}">
+            <thead>
+                <tr>
+                    <th>Plugin Name (ID)</th>
+                    <th>Description / Type</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr th:each="pluginEntry : ${loadedPlugins}">
+                    <td th:text="${pluginEntry.key}">Plugin Name</td>
+                    <td th:text="${pluginEntry.value}">Plugin Description</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <p style="text-align: center; margin-top: 20px;">
+            <a th:href="@{/ui-test}">Back to Test Page</a>
+        </p>
+    </div>
+</body>
+</html>
