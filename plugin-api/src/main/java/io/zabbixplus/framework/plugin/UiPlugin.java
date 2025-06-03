@@ -1,7 +1,7 @@
 package io.zabbixplus.framework.plugin;
 
 import java.util.List;
-// import java.util.Map; // For potential future getUiMetadata()
+import java.util.Map; // For potential future getUiMetadata()
 
 public interface UiPlugin extends Plugin {
 
@@ -28,5 +28,5 @@ public interface UiPlugin extends Plugin {
      * For now, this is conceptual.
      * @return A map of UI metadata (e.g., { "bundleUrl": "/plugins/myplugin/bundle.js" })
      */
-    // Map<String, Object> getUiMetadata();
+    Map<String, Object> getUiMetadata();
 }

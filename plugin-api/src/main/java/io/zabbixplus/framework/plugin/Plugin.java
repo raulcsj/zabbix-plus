@@ -7,6 +7,7 @@ public interface Plugin {
     String getName();
     String getDescription();
     void load(); // Called when the plugin is loaded
+    void init(PluginContext context);
     void unload(); // Called when the plugin is gracefully unloaded
 
     // Optional: if plugins need access to core Spring context
