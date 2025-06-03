@@ -1,0 +1,6 @@
+featureFlags:
+  newFeatureEnabled: true
+  experimentalOption: false
+apiSettings:
+  url: "https://api.example.com/data"
+  timeoutSeconds: 30

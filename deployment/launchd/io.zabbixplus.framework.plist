@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>io.zabbixplus.framework</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/opt/zabbix-plus-framework/bin/zabbix-plus-framework.sh</string> <!-- CHANGE_THIS: Path to the startup script -->
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/opt/zabbix-plus-framework</string> <!-- CHANGE_THIS: Path to the extracted distribution package -->
+
+    <key>RunAtLoad</key>
+    <true/> <!-- Start the service when it's loaded (e.g., on login or boot depending on where it's placed) -->
+
+    <key>KeepAlive</key>
+    <dict>
+        <key>SuccessfulExit</key>
+        <false/> <!-- Relaunch if it exits for any reason other than a clean stop by launchd -->
+    </dict>
+    <!-- For user agents (run when user logs in), KeepAlive can just be <true/> to always restart -->
+    <!-- For system daemons, more specific KeepAlive conditions like PathState or NetworkState might be used if needed -->
+
+    <key>StandardOutPath</key>
+    <string>/opt/zabbix-plus-framework/logs/stdout.log</string> <!-- CHANGE_THIS: Path for stdout log -->
+
+    <key>StandardErrorPath</key>
+    <string>/opt/zabbix-plus-framework/logs/stderr.log</string> <!-- CHANGE_THIS: Path for stderr log -->
+
+    <!-- Optional: Specify user if running as a system-wide daemon -->
+    <!-- <key>UserName</key> -->
+    <!-- <string>zabbixplus</string> --> <!-- CHANGE_THIS: User to run the service as, if placed in /Library/LaunchDaemons -->
+
+    <!-- Optional: Environment Variables -->
+    <!--
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>JAVA_OPTS</key>
+        <string>-Xmx512m -Dserver.port=8080</string>
+    </dict>
+    -->
+</dict>
+</plist>
