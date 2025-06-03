@@ -1,0 +1,24 @@
+[Unit]
+Description=Zabbix Plus Framework
+After=network.target_tag database.service_tag # Adjust if it depends on a specific database service
+
+[Service]
+User=zabbixplus # CHANGE_THIS: User to run the service as
+Group=zabbixplus # CHANGE_THIS: Group to run the service as
+
+WorkingDirectory=/opt/zabbix-plus-framework # CHANGE_THIS: Path to the extracted distribution package
+
+ExecStart=/opt/zabbix-plus-framework/bin/zabbix-plus-framework.sh # Path to the startup script
+
+SuccessExitStatus=143 # SIGTERM
+TimeoutStopSec=10
+Restart=on-failure # Or 'always' or 'no'
+RestartSec=5
+
+# Environment variables (optional)
+# Environment="JAVA_OPTS=-Xmx512m -Dserver.port=8080"
+# Environment="APPLICATION_CONFIG_PATH=/opt/zabbix-plus-framework/config/custom-application.properties"
+# (The script or app would need to be aware of APPLICATION_CONFIG_PATH)
+
+[Install]
+WantedBy=multi-user.target
