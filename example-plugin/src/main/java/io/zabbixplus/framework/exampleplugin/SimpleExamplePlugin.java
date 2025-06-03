@@ -3,8 +3,11 @@ package io.zabbixplus.framework.exampleplugin;
 import io.zabbixplus.framework.plugin.NavigationItem;
 import io.zabbixplus.framework.plugin.PluginContext;
 import io.zabbixplus.framework.plugin.UiPlugin;
+import io.zabbixplus.framework.core.service.ExampleTableService; // Added import
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.NoSuchBeanDefinitionException; // Added import
+import org.springframework.context.ApplicationContext;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -14,10 +17,13 @@ import java.util.Map;
 public class SimpleExamplePlugin implements UiPlugin {
 
     private static final Logger logger = LoggerFactory.getLogger(SimpleExamplePlugin.class);
-    public static final String PLUGIN_NAME = "SimpleExamplePlugin";
-    public static final String VUE_COMPONENT_NAME = "SimpleExamplePluginViewer"; // New constant
 
-    private PluginContext pluginContext;
+    public static final String PLUGIN_NAME = "SimpleExamplePlugin";
+    public static final String VUE_COMPONENT_NAME = "ExamplePluginDashboard";
+
+    private ApplicationContext applicationContext;
+    private Map<String, Object> pluginConfiguration;
+    private ExampleTableService exampleTableService; // Added field
 
     @Override
     public String getName() {
@@ -26,42 +32,42 @@ public class SimpleExamplePlugin implements UiPlugin {
 
     @Override
     public String getDescription() {
-        return "A simple example plugin that demonstrates Vue.js UI contributions.";
+        return "A simple example plugin that demonstrates Vue.js UI contributions and backend logic.";
     }
 
     @Override
     public void load() {
-        logger.info(PLUGIN_NAME + " loaded.");
+        logger.info("{} (UiPlugin for Vue) loaded.", PLUGIN_NAME);
     }
 
     @Override
     public void init(PluginContext context) {
-        this.pluginContext = context;
-        logger.info(PLUGIN_NAME + " initialized.");
-        if (context != null && context.getApplicationContext() != null) {
-            logger.info("ApplicationContext ID: {}", context.getApplicationContext().getId());
-            logger.info("ApplicationName: {}", context.getApplicationContext().getApplicationName());
-        } else {
-            logger.warn("PluginContext or ApplicationContext is null.");
-        }
+        this.applicationContext = context.getApplicationContext();
+        this.pluginConfiguration = context.getConfiguration();
+        logger.info("{} initialized. ApplicationContext: {}, Configuration: {}",
+                PLUGIN_NAME,
+                this.applicationContext != null ? this.applicationContext.getId() : "null",
+                this.pluginConfiguration);
 
-        if (context != null && context.getConfiguration() != null) {
-            logger.info("Plugin configuration empty? {}", context.getConfiguration().isEmpty());
-            for (Map.Entry<String, Object> entry : context.getConfiguration().entrySet()) {
-                logger.info("Config: {} = {}", entry.getKey(), entry.getValue());
+        if (this.applicationContext != null) {
+            try {
+                this.exampleTableService = this.applicationContext.getBean(ExampleTableService.class);
+                logger.info("Successfully retrieved ExampleTableService bean from core.");
+            } catch (NoSuchBeanDefinitionException e) {
+                logger.error("Could not find ExampleTableService bean in ApplicationContext. Database operations will not be available.", e);
             }
         } else {
-            logger.warn("PluginContext or Configuration is null.");
+            logger.warn("ApplicationContext is null in plugin. ExampleTableService cannot be retrieved.");
         }
     }
 
     @Override
     public void unload() {
-        logger.info(PLUGIN_NAME + " unloaded.");
+        logger.info("{} (UiPlugin for Vue) unloaded.", PLUGIN_NAME);
     }
 
     @Override
-    public String getVueComponentName() { // Changed from getUiEntryPoint
+    public String getVueComponentName() {
         return VUE_COMPONENT_NAME;
     }
 
@@ -69,9 +75,9 @@ public class SimpleExamplePlugin implements UiPlugin {
     public List<NavigationItem> getNavigationItems() {
         return Collections.singletonList(
             new NavigationItem(
-                "Example Plugin (Vue)",
-                "/ui/plugin/" + PLUGIN_NAME, // Path handled by Vue Router
-                "fas fa-puzzle-piece"
+                "Example Dashboard",
+                "/ui/plugin/" + PLUGIN_NAME,
+                "fas fa-tachometer-alt"
             )
         );
     }
@@ -79,10 +85,37 @@ public class SimpleExamplePlugin implements UiPlugin {
     @Override
     public Map<String, Object> getUiMetadata() {
         Map<String, Object> metadata = new HashMap<>();
-        metadata.put("mainComponent", getVueComponentName());
-        metadata.put("pluginName", getName());
-        metadata.put("bundleUrl", "/plugins/" + getName() + "/remoteEntry.js");
-        // Add other metadata as needed
+        metadata.put("mainComponent", VUE_COMPONENT_NAME);
+        metadata.put("pluginName", PLUGIN_NAME);
+        metadata.put("bundleUrl", "/plugins/" + PLUGIN_NAME + "/remoteEntry.js");
+        metadata.put("description", getDescription());
         return metadata;
+    }
+
+    public ApplicationContext getApplicationContext() {
+        return applicationContext;
+    }
+
+    // New methods for data interaction
+    public List<Map<String, Object>> getPluginDataRecords() {
+        if (exampleTableService == null) {
+            logger.warn("ExampleTableService not available. Cannot fetch records.");
+            return Collections.emptyList();
+        }
+        return exampleTableService.getRecords();
+    }
+
+    public void addPluginDataRecord(Map<String, String> dataPayload) {
+        if (exampleTableService == null) {
+            logger.warn("ExampleTableService not available. Cannot add record.");
+            return; // Or throw an exception
+        }
+        String name = dataPayload.get("name");
+        if (name != null && !name.trim().isEmpty()) {
+            exampleTableService.createRecord(name);
+            logger.info("Record added via plugin: {}", name);
+        } else {
+            logger.warn("No 'name' provided in payload for addPluginDataRecord. Record not added.");
+        }
     }
 }
