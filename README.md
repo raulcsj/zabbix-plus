@@ -500,6 +500,52 @@ Future enhancements could move towards a true micro-frontend architecture ("Opti
     *   Technology diversity (though sticking to Vue for consistency is simpler).
 *   **Challenges:** Shared dependency management, routing integration, inter-frontend communication, build complexity. Tools like Webpack Module Federation could be explored.
 
+## Testing
+
+This project uses JUnit 5 for unit and integration tests.
+
+### Running Tests
+
+You can run all tests in the project using the Gradle wrapper:
+
+```bash
+./gradlew test
+```
+
+To run tests for a specific module (e.g., `core` or `example-plugin`):
+
+```bash
+./gradlew :core:test
+# or
+./gradlew :example-plugin:test
+```
+
+### Code Coverage
+
+Code coverage reports are generated using JaCoCo.
+
+To generate the reports after running tests:
+
+```bash
+./gradlew jacocoTestReport
+```
+
+Or for a specific module:
+
+```bash
+./gradlew :core:jacocoTestReport
+# or
+./gradlew :example-plugin:jacocoTestReport
+```
+
+The HTML reports can be found in the respective module's build directory:
+
+*   `core/build/reports/jacoco/test/html/index.html`
+*   `example-plugin/build/reports/jacoco/test/html/index.html`
+*   (and so on for other modules)
+
+**Note:** Currently, full test execution and code coverage generation for the `core` module are impacted by an issue with resolving the jOOQ code generation plugin. Tests for `example-plugin` can be run if this dependency issue is isolated or resolved.
+
 ## 11. Contribution Guidelines
 
 *   Fork the repository.

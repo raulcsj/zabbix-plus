@@ -64,8 +64,8 @@ public class PluginService {
 
                 ServiceLoader<Plugin> serviceLoader = ServiceLoader.load(Plugin.class, pluginClassLoader);
                 for (Plugin plugin : serviceLoader) {
-                    if (loadedPlugins.containsKey(plugin.getName())) {
-                        logger.warn("Plugin with name '{}' already loaded. Skipping duplicate from {}.", plugin.getName(), pluginFile.getName());
+                    if (loadedPlugins.containsKey(plugin.getPluginName())) {
+                        logger.warn("Plugin with name '{}' already loaded. Skipping duplicate from {}.", plugin.getPluginName(), pluginFile.getName());
                         continue;
                     }
                     plugin.load(); // Existing load call
@@ -79,8 +79,8 @@ public class PluginService {
                     // Initialize plugin with context
                     plugin.init(pluginContext);
 
-                    loadedPlugins.put(plugin.getName(), plugin);
-                    logger.info("Successfully loaded and initialized plugin: {} - {}", plugin.getName(), plugin.getDescription());
+                    loadedPlugins.put(plugin.getPluginName(), plugin);
+                    logger.info("Successfully loaded and initialized plugin: {} - {}", plugin.getPluginName(), plugin.getDescription());
                 }
             } catch (Exception e) {
                 logger.error("Failed to load or initialize plugin from file: " + pluginFile.getName(), e);

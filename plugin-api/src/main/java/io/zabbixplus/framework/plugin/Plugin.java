@@ -4,7 +4,10 @@ package io.zabbixplus.framework.plugin; // Updated package
 // import org.springframework.context.ApplicationContext;
 
 public interface Plugin {
-    String getName();
+    String getPluginId();       // Unique identifier for the plugin
+    String getPluginName();     // Human-readable name of the plugin
+    String getVendor();         // Vendor of the plugin
+    String getVersion();        // Version of the plugin
     String getDescription();
     void load(); // Called when the plugin is loaded
     void init(PluginContext context);

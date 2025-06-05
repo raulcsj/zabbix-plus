@@ -29,4 +29,20 @@ public interface UiPlugin extends Plugin {
      * @return A map of UI metadata (e.g., { "bundleUrl": "/plugins/myplugin/bundle.js" })
      */
     Map<String, Object> getUiMetadata();
+
+    /**
+     * Gets the base path for this plugin's static UI assets.
+     * This path is typically relative to a common plugins asset directory,
+     * e.g., "my-plugin/assets". The framework might use this to construct full URLs.
+     * @return A string representing the assets path.
+     */
+    String getAssetsPath();
+
+    /**
+     * Gets the name of the entry component or module for this plugin's UI,
+     * particularly if it's a micro-frontend that needs a specific bootstrap identifier.
+     * This might be the same as getVueComponentName() or different depending on the architecture.
+     * @return A string representing the entry component/module name.
+     */
+    String getEntryComponent();
 }
