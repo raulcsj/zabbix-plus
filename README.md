@@ -32,6 +32,26 @@ The `PluginService` in the `core` module is responsible for scanning a designate
     *   For plugin-specific actions: e.g., `GET /api/plugins/simpleexampleplugin/data` (handled by controllers within the specific plugin, like `ExamplePluginApiController`).
 *   **Core/Plugin Logic:** Backend controllers in `core` or plugins process these requests, potentially interacting with core services (like `ExampleTableService`) or plugin-specific logic.
 
+### Plugin Data Flow Example
+
+This example outlines the typical sequence of events when a user interacts with a plugin's UI, leading to data fetching and display:
+
+1.  **User Interaction (Frontend):** The user clicks a button or performs an action within a Vue component that is part of a loaded plugin's UI (e.g., inside `MyPluginComponent.vue` rendered by `PluginPlaceholderView`).
+2.  **Plugin API Call (Frontend):** The Vue component makes an asynchronous request (e.g., using `axios` or `fetch`) to a plugin-specific backend API endpoint. This endpoint is typically namespaced for the plugin, for example: `POST /api/plugins/myplugin/data` or `GET /api/plugins/myplugin/items/{itemId}`.
+3.  **Request Routing to Plugin Controller (Backend):** The Spring Boot application receives the request. Based on the URL pattern (e.g., `/api/plugins/myplugin/**`), it routes the request to a `@RestController` defined *within* the specific plugin's JAR file (e.g., `MyPluginApiController.java`).
+4.  **Plugin Controller Logic (Backend):** The plugin's controller method handles the request. It may:
+    *   Interact with a plugin-specific service (e.g., `MyPluginService.java` also within the plugin).
+    *   Or, interact with a core service provided by the framework (e.g., `ExampleTableService` if the plugin needs to access shared data).
+5.  **Service Layer (Backend):** The service (plugin-specific or core) executes the business logic. This might involve:
+    *   Fetching data from a database (e.g., using jOOQ via `ExampleTableService` or the plugin's own data access layer).
+    *   Calling external APIs.
+    *   Performing calculations or data transformations.
+6.  **Data Return Flow (Backend to Frontend):**
+    *   The service returns data to the plugin controller.
+    *   The plugin controller constructs an HTTP response (e.g., a JSON payload) and returns it.
+    *   Spring Boot sends this response back to the `main-ui`.
+7.  **UI Update (Frontend):** The plugin's Vue component (which made the initial call) receives the response. It then updates its state, causing the UI to re-render and display the new data or the results of the action.
+
 ## 3. Core Module (`core`)
 
 The `core` module is the heart of the Zabbix Plus Framework.
@@ -43,9 +63,10 @@ The `core` module is the heart of the Zabbix Plus Framework.
     *   Serving the main UI and its associated APIs.
 *   **Key Components:**
     *   **`PluginService.java`:**
-        *   Loads plugin JARs from the `plugins` directory at startup.
+        *   Loads plugin JARs from the `plugins` directory at startup. It uses a separate `URLClassLoader` for each plugin, providing a degree of classloader isolation between plugins and between plugins and the core application.
         *   Manages plugin lifecycle (`load`, `init`, `unload`).
         *   Provides access to loaded plugin instances.
+        *   During the `init` phase of each plugin, a `PluginContext` is created. This context holds a reference to the main `ApplicationContext` (allowing plugins to access core Spring beans) and the plugin's specific configuration (parsed from its `config.yml` or `config.yaml` file, if present). This `PluginContext` is then passed to the plugin's `init` method.
     *   **`PluginContext.java`:** (Defined in `plugin-api`, but used by `core`)
         *   Passed to each plugin during its `init` phase.
         *   Provides access to the main `ApplicationContext` (allowing plugins to retrieve core beans) and the plugin's specific configuration (from its `config.yml`).
@@ -53,7 +74,11 @@ The `core` module is the heart of the Zabbix Plus Framework.
         *   `CoreApplication` uses `@SpringBootApplication(scanBasePackages = {"io.zabbixplus.framework"})`.
         *   It's crucial that this `scanBasePackages` is broad enough to discover Spring components (`@Service`, `@Component`, `@RestController`, etc.) in both the `core` module and any loaded plugins (e.g., `io.zabbixplus.framework.exampleplugin.controller`).
 *   **Core Services:**
-    *   **`ExampleTableService.java`:** An example service demonstrating database interaction using jOOQ. It provides methods like `createRecord(String name)` and `getRecords()`.
+    *   **`ExampleTableService.java`:** This is an *example* of a core service that plugins *can* (but are not required to) use. It demonstrates how a service within the `core` module can provide common functionalities, such as database interaction.
+        *   It is implemented as a Spring `@Service`.
+        *   It uses jOOQ for type-safe SQL database interactions, showcasing a way to manage data persistence.
+        *   Plugins can obtain an instance of this service (or other core services) via the `ApplicationContext` provided in their `PluginContext`.
+        *   It provides methods like `createRecord(String name)` and `getRecords()` as examples of database operations.
 *   **Backend API for UI Plugins:**
     *   **`PluginUiController.java`:**
         *   **Endpoint:** `GET /api/ui/plugin-metadata`

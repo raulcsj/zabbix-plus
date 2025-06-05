@@ -20,6 +20,12 @@ dependencies {
                                          // And also makes it easier to include in the 'lib' dir of the distribution.
     implementation("org.yaml:snakeyaml:2.0")
     testImplementation("org.springframework.boot:spring-boot-starter-test")
+    testImplementation("org.mockito:mockito-core:5.10.0")
+    testImplementation("org.mockito:mockito-junit-jupiter:5.10.0")
+}
+
+tasks.withType<Test> {
+    useJUnitPlatform()
 }
 
 // Configure the distribution packaging (distZip, distTar)
