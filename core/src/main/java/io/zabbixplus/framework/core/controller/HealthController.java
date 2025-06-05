@@ -7,8 +7,12 @@ import jakarta.validation.constraints.NotBlank;
 import org.springframework.web.bind.annotation.*;
 import io.zabbixplus.framework.core.service.ExampleTableService; // Updated
 import org.springframework.beans.factory.annotation.Autowired;
+
+import java.util.HashMap; // Added for mapEntityToMap
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors; // Added for stream().map().collect()
+import io.zabbixplus.framework.core.entity.ExampleEntity; // Added for ExampleEntity
 
 @RestController
 @RequestMapping("/api")
@@ -76,6 +80,21 @@ public class HealthController {
 
     @GetMapping("/records")
     public ApiResponse<List<Map<String, Object>>> getAllRecords() {
-        return ApiResponse.success(exampleTableService.getRecords());
+        List<ExampleEntity> entities = exampleTableService.getRecords();
+        List<Map<String, Object>> result = entities.stream()
+            .map(this::mapEntityToMap)
+            .collect(Collectors.toList());
+        return ApiResponse.success(result);
+    }
+
+    private Map<String, Object> mapEntityToMap(ExampleEntity entity) {
+        Map<String, Object> map = new HashMap<>();
+        if (entity == null) {
+            return null;
+        }
+        map.put("id", entity.getId());
+        map.put("name", entity.getName());
+        map.put("createdAt", entity.getCreatedAt() != null ? entity.getCreatedAt().toInstant().toString() : null);
+        return map;
     }
 }

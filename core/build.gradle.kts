@@ -1,6 +1,7 @@
 plugins {
     id("org.springframework.boot")
     id("application") // Apply the application plugin
+    id("io.ebean") version "13.25.0" // Add Ebean plugin
 }
 
 val distributionName = "zabbix-plus-framework" // Define distributionName earlier
@@ -67,13 +68,25 @@ application {
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-validation")
-    implementation("org.springframework.boot:spring-boot-starter-jooq") // For jOOQ and Spring Transaction support
+    implementation("org.springframework.boot:spring-boot-starter-data-jpa") {
+        exclude(group = "org.hibernate.orm", module = "hibernate-core")
+        // Potentially exclude other hibernate modules like hibernate-entitymanager if necessary
+    }
+    implementation("jakarta.persistence:jakarta.persistence-api:3.1.0") // Explicitly add JPA API
+    // implementation("io.ebean:ebean-spring-boot-starter:13.25.0") // Removed, relying on ebean plugin + main ebean dep + JPA starter for TX/Persistence API
     implementation("jakarta.validation:jakarta.validation-api:3.0.2")
     implementation(project(":database"))
     implementation(project(":plugin-api")) // Add plugin-api as a direct dependency to core
                                          // This ensures it's part of core's classpath and available to plugins
                                          // And also makes it easier to include in the 'lib' dir of the distribution.
     implementation("org.yaml:snakeyaml:2.0")
+
+    // Ebean dependencies
+    implementation("io.ebean:ebean:13.25.0")
+    annotationProcessor("io.ebean:querybean-generator:13.25.0")
+    implementation("io.ebean:ebean-jackson-mapper:13.25.0") // Optional, for Jackson DTO mapping
+    testImplementation("io.ebean:ebean-test:13.25.0")
+
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.mockito:mockito-core:5.10.0")
     testImplementation("org.mockito:mockito-junit-jupiter:5.10.0")

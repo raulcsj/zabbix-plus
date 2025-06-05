@@ -20,7 +20,7 @@ The framework consists of several key modules:
 *   **`plugin-api`:** Defines the interfaces (`Plugin`, `UiPlugin`, `PluginContext`) that all plugins must implement. This ensures a consistent contract between the core framework and plugins.
 *   **Plugins (e.g., `example-plugin`):** Individual modules containing custom logic and UI components. They are packaged as JARs and placed in a `plugins` directory.
 *   **`main-ui`:** A Vue.js single-page application that serves as the primary user interface. It dynamically adapts to loaded plugins by fetching metadata and rendering appropriate UI elements.
-*   **`database`:** (Conceptual or actual module for jOOQ generated code, schema management). The framework uses a database, interacted with via jOOQ in the `core` module.
+*   **`database`:** (Conceptual or actual module for database schema management). The framework uses a database, interacted with via Ebean ORM in the `core` module using entities like `ExampleEntity`.
 
 **Plugin Loading Mechanism:**
 The `PluginService` in the `core` module is responsible for scanning a designated `plugins` directory (default: `./plugins`) for JAR files. It uses Java's `ServiceLoader` mechanism to discover and instantiate `Plugin` implementations within these JARs. Each plugin is loaded in its own `URLClassLoader` for some degree of isolation.
@@ -43,7 +43,7 @@ This example outlines the typical sequence of events when a user interacts with 
     *   Interact with a plugin-specific service (e.g., `MyPluginService.java` also within the plugin).
     *   Or, interact with a core service provided by the framework (e.g., `ExampleTableService` if the plugin needs to access shared data).
 5.  **Service Layer (Backend):** The service (plugin-specific or core) executes the business logic. This might involve:
-    *   Fetching data from a database (e.g., using jOOQ via `ExampleTableService` or the plugin's own data access layer).
+    *   Fetching data from a database (e.g., using Ebean ORM via `ExampleTableService` with entities like `ExampleEntity`, or the plugin's own data access layer).
     *   Calling external APIs.
     *   Performing calculations or data transformations.
 6.  **Data Return Flow (Backend to Frontend):**
@@ -76,9 +76,9 @@ The `core` module is the heart of the Zabbix Plus Framework.
 *   **Core Services:**
     *   **`ExampleTableService.java`:** This is an *example* of a core service that plugins *can* (but are not required to) use. It demonstrates how a service within the `core` module can provide common functionalities, such as database interaction.
         *   It is implemented as a Spring `@Service`.
-        *   It uses jOOQ for type-safe SQL database interactions, showcasing a way to manage data persistence.
+        *   It uses Ebean ORM for database interactions, with `ExampleEntity.java` as an example entity. This showcases a way to manage data persistence using an ORM.
         *   Plugins can obtain an instance of this service (or other core services) via the `ApplicationContext` provided in their `PluginContext`.
-        *   It provides methods like `createRecord(String name)` and `getRecords()` as examples of database operations.
+        *   It provides methods like `createRecord(String name)` (which creates an `ExampleEntity`) and `getRecords()` (which returns a list of `ExampleEntity` objects) as examples of database operations.
 *   **Backend API for UI Plugins:**
     *   **`PluginUiController.java`:**
         *   **Endpoint:** `GET /api/ui/plugin-metadata`
@@ -467,7 +467,7 @@ This section provides guidance for developers looking to set up a local developm
 *   **Java Development Kit (JDK):** Version 17 or higher.
 *   **Node.js:** Version 18 or higher, with npm or yarn (for `main-ui` development).
 *   **Gradle:** The project uses the Gradle wrapper.
-*   **PostgreSQL Database:** Or adapt `ExampleTableService` and configuration for another SQL database. The initial database setup (creating the database and tables) is required.
+*   **PostgreSQL Database:** Or adapt `ExampleTableService` (which uses Ebean and `ExampleEntity`) and configuration for another SQL database. The initial database setup (creating the database and tables, e.g., `example_table`) is required.
 
 ### Backend (`core` and plugins) - Development
 1.  **Clone Repository.**
@@ -544,7 +544,7 @@ The HTML reports can be found in the respective module's build directory:
 *   `example-plugin/build/reports/jacoco/test/html/index.html`
 *   (and so on for other modules)
 
-**Note:** Currently, full test execution and code coverage generation for the `core` module are impacted by an issue with resolving the jOOQ code generation plugin. Tests for `example-plugin` can be run if this dependency issue is isolated or resolved.
+**Note:** The `core` module's tests currently have issues loading the Spring context with Ebean and H2 for full integration testing, though compilation is successful. One specific test in `example-plugin` (`testPluginIdentity`) is also currently failing due to a string assertion.
 
 ## 11. Contribution Guidelines
 

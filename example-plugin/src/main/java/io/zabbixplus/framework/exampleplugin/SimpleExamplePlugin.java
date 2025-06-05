@@ -9,10 +9,13 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.NoSuchBeanDefinitionException; // Added import
 import org.springframework.context.ApplicationContext;
 
+import io.zabbixplus.framework.core.entity.ExampleEntity; // Needed for mapping
+
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors; // Needed for mapping
 
 public class SimpleExamplePlugin implements UiPlugin {
 
@@ -125,6 +128,11 @@ public class SimpleExamplePlugin implements UiPlugin {
         return getPluginId() + "-entry"; // Example: "simple-example-plugin-entry"
     }
 
+    @Override
+    public List<String> getRequiredPrivileges() {
+        return Collections.emptyList(); // No specific privileges required for this example
+    }
+
     public ApplicationContext getApplicationContext() {
         return applicationContext;
     }
@@ -135,7 +143,19 @@ public class SimpleExamplePlugin implements UiPlugin {
             logger.warn("ExampleTableService not available. Cannot fetch records.");
             return Collections.emptyList();
         }
-        return exampleTableService.getRecords();
+        List<ExampleEntity> entities = exampleTableService.getRecords();
+        return entities.stream().map(this::mapEntityToMap).collect(Collectors.toList());
+    }
+
+    private Map<String, Object> mapEntityToMap(ExampleEntity entity) {
+        Map<String, Object> map = new HashMap<>();
+        if (entity == null) {
+            return map; // Return empty map for null entity to avoid NPE in list
+        }
+        map.put("id", entity.getId());
+        map.put("name", entity.getName());
+        map.put("createdAt", entity.getCreatedAt() != null ? entity.getCreatedAt().toInstant().toString() : null);
+        return map;
     }
 
     public void addPluginDataRecord(Map<String, String> dataPayload) {

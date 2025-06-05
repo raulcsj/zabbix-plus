@@ -45,4 +45,11 @@ public interface UiPlugin extends Plugin {
      * @return A string representing the entry component/module name.
      */
     String getEntryComponent();
+
+    /**
+     * Optional: Defines a list of privilege keys or roles required to access/use this plugin's UI or features.
+     * The core application can use this for enabling/disabling UI elements or for backend authorization.
+     * @return A list of strings representing privilege keys. Return empty list if no specific privileges required.
+     */
+    List<String> getRequiredPrivileges();
 }

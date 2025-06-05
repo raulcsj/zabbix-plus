@@ -27,7 +27,14 @@ public class PluginUiController {
                 .filter(UiPlugin.class::isInstance)
                 .map(UiPlugin.class::cast)
                 .map(uiPlugin -> new PluginClientInfo(
+                        uiPlugin.getPluginId(),
                         uiPlugin.getPluginName(),
+                        uiPlugin.getVendor(),
+                        uiPlugin.getVersion(),
+                        uiPlugin.getDescription(),
+                        uiPlugin.getAssetsPath(),
+                        uiPlugin.getEntryComponent(),
+                        uiPlugin.getRequiredPrivileges(),
                         uiPlugin.getUiMetadata(),
                         uiPlugin.getNavigationItems()
                 ))

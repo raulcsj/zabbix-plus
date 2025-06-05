@@ -1,22 +1,23 @@
 package io.zabbixplus.framework.core.service;
 
+import io.ebean.DB;
 import io.zabbixplus.framework.core.CoreApplication;
-import io.zabbixplus.framework.database.tables.records.ExampleTableRecord;
-import org.jooq.DSLContext;
+import io.zabbixplus.framework.core.entity.ExampleEntity; // Ebean entity
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.transaction.annotation.Transactional; // Optional: if tests modify data and need rollback
+import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.sql.Timestamp; // For comparing createdAt
+import java.time.Instant; // For creating Timestamp
+import java.time.temporal.ChronoUnit; // For comparing timestamps
 import java.util.List;
 
-import static io.zabbixplus.framework.database.tables.ExampleTable.EXAMPLE_TABLE;
 import static org.junit.jupiter.api.Assertions.*;
 
-@SpringBootTest(classes = CoreApplication.class) // Specify your main application class
+@SpringBootTest(classes = CoreApplication.class)
 @ActiveProfiles("test")
 @Transactional // Rollback transactions after each test
 class ExampleTableServiceTest {
@@ -24,132 +25,132 @@ class ExampleTableServiceTest {
     @Autowired
     private ExampleTableService exampleTableService;
 
-    @Autowired
-    private DSLContext dsl; // For direct DB interaction/verification if needed
+    // DSLContext removed
 
     @BeforeEach
     void setUp() {
-        // Clean up the table before each test if not relying solely on @Transactional
-        dsl.deleteFrom(EXAMPLE_TABLE).execute();
+        // Clean up the table before each test using Ebean
+        // DB.deleteAll(ExampleEntity.class) is also an option
+        DB.find(ExampleEntity.class).delete();
     }
 
     @Test
     void testCreateRecord() {
         String testData = "Test Data Create";
-        ExampleTableRecord createdRecord = exampleTableService.createRecord(testData);
+        ExampleEntity createdEntity = exampleTableService.createRecord(testData);
 
-        assertNotNull(createdRecord);
-        assertNotNull(createdRecord.getId());
-        assertEquals(testData, createdRecord.getData());
-        assertNotNull(createdRecord.getCreatedAt());
+        assertNotNull(createdEntity);
+        assertNotNull(createdEntity.getId(), "ID should be generated after save.");
+        assertEquals(testData, createdEntity.getName());
+        assertNotNull(createdEntity.getCreatedAt(), "CreatedAt should be set by @WhenCreated.");
 
-        // Verify in DB
-        ExampleTableRecord dbRecord = dsl.selectFrom(EXAMPLE_TABLE)
-                                         .where(EXAMPLE_TABLE.ID.eq(createdRecord.getId()))
-                                         .fetchOne();
-        assertNotNull(dbRecord);
-        assertEquals(testData, dbRecord.getData());
+        // Verify in DB using Ebean
+        ExampleEntity dbEntity = DB.find(ExampleEntity.class, createdEntity.getId());
+        assertNotNull(dbEntity, "Entity should be found in DB after creation.");
+        assertEquals(testData, dbEntity.getName());
+        assertNotNull(dbEntity.getCreatedAt());
+        assertEquals(createdEntity.getCreatedAt().getTime(), dbEntity.getCreatedAt().getTime()); // Compare timestamp values
     }
 
     @Test
     void testGetRecordById() {
         String testData = "Test Data Get By Id";
-        ExampleTableRecord newRecord = exampleTableService.createRecord(testData);
+        ExampleEntity newEntity = exampleTableService.createRecord(testData);
+        assertNotNull(newEntity.getId(), "Created entity must have an ID for this test.");
 
-        ExampleTableRecord foundRecord = exampleTableService.getRecordById(newRecord.getId());
+        ExampleEntity foundEntity = exampleTableService.getRecordById(newEntity.getId());
 
-        assertNotNull(foundRecord);
-        assertEquals(newRecord.getId(), foundRecord.getId());
-        assertEquals(testData, foundRecord.getData());
+        assertNotNull(foundEntity, "Entity should be found by ID.");
+        assertEquals(newEntity.getId(), foundEntity.getId());
+        assertEquals(testData, foundEntity.getName());
     }
 
     @Test
     void testGetRecordById_NotFound() {
-        ExampleTableRecord foundRecord = exampleTableService.getRecordById(-1L); // Non-existent ID
-        assertNull(foundRecord);
+        ExampleEntity foundEntity = exampleTableService.getRecordById(-1L); // Non-existent ID
+        assertNull(foundEntity, "Should return null for a non-existent ID.");
     }
 
     @Test
-    void testGetAllRecords() {
+    void testGetRecords() { // Renamed from testGetAllRecords to match service method
         exampleTableService.createRecord("Record 1");
         exampleTableService.createRecord("Record 2");
 
-        List<ExampleTableRecord> records = exampleTableService.getAllRecords();
+        List<ExampleEntity> entities = exampleTableService.getRecords();
 
-        assertNotNull(records);
-        assertEquals(2, records.size());
+        assertNotNull(entities);
+        assertEquals(2, entities.size(), "Should retrieve two records.");
     }
 
     @Test
-    void testGetAllRecords_Empty() {
-        List<ExampleTableRecord> records = exampleTableService.getAllRecords();
-        assertNotNull(records);
-        assertTrue(records.isEmpty());
+    void testGetRecords_Empty() { // Renamed from testGetAllRecords_Empty
+        List<ExampleEntity> entities = exampleTableService.getRecords();
+        assertNotNull(entities);
+        assertTrue(entities.isEmpty(), "Should return an empty list when no records exist.");
     }
 
     @Test
     void testUpdateRecord() {
-        ExampleTableRecord createdRecord = exampleTableService.createRecord("Initial Data");
+        ExampleEntity createdEntity = exampleTableService.createRecord("Initial Data");
+        assertNotNull(createdEntity.getId(), "Created entity must have an ID.");
         String updatedData = "Updated Data";
 
-        ExampleTableRecord updatedRecord = exampleTableService.updateRecord(createdRecord.getId(), updatedData);
+        ExampleEntity updatedEntity = exampleTableService.updateRecord(createdEntity.getId(), updatedData);
 
-        assertNotNull(updatedRecord);
-        assertEquals(createdRecord.getId(), updatedRecord.getId());
-        assertEquals(updatedData, updatedRecord.getData());
+        assertNotNull(updatedEntity, "Updated entity should not be null.");
+        assertEquals(createdEntity.getId(), updatedEntity.getId());
+        assertEquals(updatedData, updatedEntity.getName(), "Name should be updated.");
 
         // Verify in DB
-        ExampleTableRecord dbRecord = dsl.selectFrom(EXAMPLE_TABLE)
-                                         .where(EXAMPLE_TABLE.ID.eq(createdRecord.getId()))
-                                         .fetchOne();
-        assertNotNull(dbRecord);
-        assertEquals(updatedData, dbRecord.getData());
+        ExampleEntity dbEntity = DB.find(ExampleEntity.class, createdEntity.getId());
+        assertNotNull(dbEntity, "Entity should still exist in DB.");
+        assertEquals(updatedData, dbEntity.getName(), "Name should be updated in DB.");
     }
 
     @Test
     void testUpdateRecord_NotFound() {
-        ExampleTableRecord updatedRecord = exampleTableService.updateRecord(-1L, "Data for non-existent record");
-        assertNull(updatedRecord, "Updating a non-existent record should return null or throw an exception, depending on service implementation.");
-        // If the service is designed to throw an exception, use assertThrows
-        // assertThrows(SomeSpecificException.class, () -> exampleTableService.updateRecord(-1L, "Data"));
+        ExampleEntity updatedEntity = exampleTableService.updateRecord(-1L, "Data for non-existent record");
+        assertNull(updatedEntity, "Updating a non-existent record should return null.");
     }
-
 
     @Test
     void testDeleteRecord() {
-        ExampleTableRecord createdRecord = exampleTableService.createRecord("Data to be Deleted");
-        Long recordId = createdRecord.getId();
+        ExampleEntity createdEntity = exampleTableService.createRecord("Data to be Deleted");
+        assertNotNull(createdEntity.getId(), "Created entity must have an ID.");
+        Long recordId = createdEntity.getId();
 
         boolean deleted = exampleTableService.deleteRecord(recordId);
-        assertTrue(deleted);
+        assertTrue(deleted, "Delete method should return true for successful deletion.");
 
         // Verify in DB
-        ExampleTableRecord dbRecord = dsl.selectFrom(EXAMPLE_TABLE)
-                                         .where(EXAMPLE_TABLE.ID.eq(recordId))
-                                         .fetchOne();
-        assertNull(dbRecord);
+        ExampleEntity dbEntity = DB.find(ExampleEntity.class, recordId);
+        assertNull(dbEntity, "Entity should be deleted from DB.");
     }
 
     @Test
     void testDeleteRecord_NotFound() {
         boolean deleted = exampleTableService.deleteRecord(-1L); // Non-existent ID
-        assertFalse(deleted);
+        assertFalse(deleted, "Delete method should return false for non-existent ID.");
     }
 
     @Test
     void testCreatedAtTimestamp() {
-        LocalDateTime beforeCreation = LocalDateTime.now();
-        ExampleTableRecord createdRecord = exampleTableService.createRecord("Timestamp Test");
-        LocalDateTime afterCreation = LocalDateTime.now();
+        // Get current time before creation, allow for some precision differences with DB
+        Instant beforeCreationInstant = Instant.now().minusSeconds(1); // a little buffer
 
-        assertNotNull(createdRecord.getCreatedAt());
-        // Check if created_at is within a reasonable range (e.g., not in the future beyond 'now', not too far in the past)
-        // Allow for slight clock differences if 'beforeCreation' and 'afterCreation' are very close to actual creation time.
-        assertTrue(createdRecord.getCreatedAt().isEqual(beforeCreation) || createdRecord.getCreatedAt().isAfter(beforeCreation));
-        assertTrue(createdRecord.getCreatedAt().isEqual(afterCreation) || createdRecord.getCreatedAt().isBefore(afterCreation));
+        ExampleEntity createdEntity = exampleTableService.createRecord("Timestamp Test");
+        assertNotNull(createdEntity.getCreatedAt(), "CreatedAt should be automatically set.");
 
-        // A more robust check might involve fetching the DB server's timestamp if possible,
-        // but for H2 in-mem, client and server time are the same.
-        // We primarily check that it's set.
+        Instant createdAtInstant = createdEntity.getCreatedAt().toInstant();
+        Instant afterCreationInstant = Instant.now().plusSeconds(1); // a little buffer
+
+        assertTrue(createdAtInstant.isAfter(beforeCreationInstant) || createdAtInstant.equals(beforeCreationInstant),
+                "CreatedAt should be after or equal to the time before creation.");
+        assertTrue(createdAtInstant.isBefore(afterCreationInstant) || createdAtInstant.equals(afterCreationInstant),
+                "CreatedAt should be before or equal to the time after creation (accounting for test execution time).");
+
+        // A more direct check: createdAt should be very close to 'now' (within a few seconds)
+        long diffMillis = Math.abs(Timestamp.from(Instant.now()).getTime() - createdEntity.getCreatedAt().getTime());
+        assertTrue(diffMillis < 5000, "CreatedAt should be very recent (within 5 seconds).");
     }
 }

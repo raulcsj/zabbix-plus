@@ -20,7 +20,7 @@ Zabbix Plus Framework 是一个基于 Spring Boot 的应用程序，旨在通过
 *   **`plugin-api` (插件 API):** 定义所有插件必须实现的接口 (`Plugin`, `UiPlugin`, `PluginContext`)。这确保了核心框架和插件之间的一致契约。
 *   **Plugins (插件，例如 `example-plugin`):** 包含自定义逻辑和 UI 组件的独立模块。它们被打包为 JAR 文件并放置在 `plugins` 目录中。
 *   **`main-ui` (主用户界面):** 一个 Vue.js 单页应用程序，作为主要的用户界面。它通过获取元数据并呈现适当的 UI 元素来动态适应加载的插件。
-*   **`database` (数据库):** (用于 jOOQ 生成代码、模式管理的概念性或实际模块)。框架使用数据库，并通过 `core` 模块中的 jOOQ 与之交互。
+*   **`database` (数据库):** (用于数据库模式管理的概念性或实际模块)。框架使用数据库，并通过 `core` 模块中的 Ebean ORM (使用如 `ExampleEntity` 的实体) 与之交互。
 
 **插件加载机制:**
 `core` 模块中的 `PluginService` 负责扫描指定的 `plugins` 目录 (默认为 `./plugins`) 中的 JAR 文件。它使用 Java 的 `ServiceLoader` 机制来发现和实例化这些 JAR 中的 `Plugin` 实现。每个插件都在其自己的 `URLClassLoader` 中加载，以实现一定程度的隔离。
@@ -43,7 +43,7 @@ Zabbix Plus Framework 是一个基于 Spring Boot 的应用程序，旨在通过
     *   与插件特定的服务（例如，同样在插件内的 `MyPluginService.java`）交互。
     *   或者，与框架提供的核心服务（例如，如果插件需要访问共享数据，则为 `ExampleTableService`）交互。
 5.  **服务层 (后端):** 服务（插件特定或核心）执行业务逻辑。这可能涉及：
-    *   从数据库获取数据（例如，通过 `ExampleTableService` 使用 jOOQ 或插件自己的数据访问层）。
+    *   从数据库获取数据（例如，通过 `ExampleTableService` 使用 Ebean ORM 和如 `ExampleEntity` 的实体，或插件自己的数据访问层）。
     *   调用外部 API。
     *   执行计算或数据转换。
 6.  **数据返回流程 (后端到前端):**
@@ -76,9 +76,9 @@ Zabbix Plus Framework 是一个基于 Spring Boot 的应用程序，旨在通过
 *   **核心服务:**
     *   **`ExampleTableService.java`:** 这是一个核心服务的*示例*，插件*可以*（但非必须）使用它。它演示了 `core` 模块中的服务如何提供通用功能，例如数据库交互。
         *   它被实现为一个 Spring `@Service`。
-        *   它使用 jOOQ 进行类型安全的 SQL 数据库交互，展示了一种管理数据持久性的方式。
+        *   它使用 Ebean ORM 进行数据库交互，以 `ExampleEntity.java` 作为一个示例实体。这展示了一种使用 ORM 管理数据持久性的方式。
         *   插件可以通过其 `PluginContext` 中提供的 `ApplicationContext` 获取此服务（或其他核心服务）的实例。
-        *   它提供了诸如 `createRecord(String name)` 和 `getRecords()` 之类的方法作为数据库操作的示例。
+        *   它提供了诸如 `createRecord(String name)` (创建 `ExampleEntity`) 和 `getRecords()` (返回 `ExampleEntity` 对象列表) 之类的方法作为数据库操作的示例。
 *   **UI 插件的后端 API:**
     *   **`PluginUiController.java`:**
         *   **端点:** `GET /api/ui/plugin-metadata`
@@ -468,7 +468,7 @@ Zabbix Plus Framework 是一个基于 Spring Boot 的应用程序，旨在通过
 *   **Java Development Kit (JDK):** 版本 17 或更高。
 *   **Node.js:** 版本 18 或更高，包含 npm 或 yarn (用于 `main-ui` 开发)。
 *   **Gradle:** 项目使用 Gradle 包装器。
-*   **PostgreSQL 数据库:** 或调整 `ExampleTableService` 和配置以适应其他 SQL 数据库。需要进行初始数据库设置 (创建数据库和表)。
+*   **PostgreSQL 数据库:** 或调整 `ExampleTableService` (其使用 Ebean 和 `ExampleEntity`) 和配置以适应其他 SQL 数据库。需要进行初始数据库设置 (创建数据库和表，例如 `example_table`)。
 
 ### 后端 (`core` 和插件) - 开发
 1.  **克隆存储库。**
