@@ -2,6 +2,7 @@ plugins {
     java
     id("org.springframework.boot") version "3.2.0" apply false // Apply false so it's not applied to root
     id("io.spring.dependency-management") version "1.1.4"
+    jacoco // Add this line
 }
 
 allprojects {
@@ -79,5 +80,39 @@ project(":database") {
         // implementation("org.jooq:jooq:3.18.7") // jOOQ, if chosen
         // implementation("org.jooq:jooq-meta:3.18.7")
         // implementation("org.jooq:jooq-codegen:3.18.7")
+    }
+}
+
+// Add this block at the end of the file or after the subprojects block
+
+allprojects {
+    // Apply JaCoCo to all projects that have the Java plugin
+    plugins.withType<JavaPlugin> {
+        apply(plugin = "jacoco")
+
+        tasks.withType<JacocoReport> {
+            reports {
+                xml.required.set(true)
+                html.required.set(true)
+                csv.required.set(false)
+            }
+        }
+
+        // Ensure that the test task runs before jacocoTestReport
+        tasks.named<JacocoReport>("jacocoTestReport") {
+            dependsOn(tasks.named<Test>("test"))
+        }
+    }
+}
+
+// Specific JaCoCo configuration for modules where we want to enforce coverage/reporting
+listOf(project(":core"), project(":example-plugin")).forEach { proj ->
+    proj.plugins.apply("jacoco") // Ensure jacoco is applied
+    proj.tasks.withType<Test> {
+        finalizedBy(proj.tasks.named("jacocoTestReport")) // Run jacocoTestReport after tests
+    }
+    proj.tasks.withType<JacocoReport> {
+        // Configure source sets and class directories for each project
+        sourceSets(proj.the<JavaPluginExtension>().sourceSets.getByName("main"))
     }
 }
