@@ -1,27 +1,96 @@
 plugins {
     id("org.springframework.boot")
     id("application") // Apply the application plugin
+    id("io.ebean") version "13.25.0" // Add Ebean plugin
 }
+
+val distributionName = "zabbix-plus-framework" // Define distributionName earlier
 
 // Configure the application plugin
 application {
     // Define the main class for the application
     mainClass.set("io.zabbixplus.framework.core.CoreApplication")
-    applicationName.set("zabbix-plus-framework") // Set the application name
+    applicationName = "zabbix-plus-framework" // Set the application name using direct assignment
+
+    distributions.named("main") {
+        distributionBaseName.set(distributionName) // Sets the base name for the archive (e.g., zabbix-plus-framework.zip)
+        contents {
+            // Copy core JAR and its dependencies (handled by application plugin by default into its own lib structure)
+            // We need to ensure plugin-api.jar is also there.
+            // The application plugin by default puts runtime dependencies of the 'application' project (core) into 'lib'.
+            // Since :plugin-api is now a dependency of :core, it should be included.
+
+            // Copy plugins
+            into("plugins") {
+                from(project(":example-plugin").tasks.named("jar")) { // Depends on example-plugin's jar task
+                    rename { "${it.replace("-${project(":example-plugin").version}", "")}" } // Optional: remove version from plugin jar name
+                }
+                // Add other plugins here similarly
+            }
+
+            // Copy main-ui static assets
+        // Temporarily commented out to avoid 'buildFrontend' task not found error
+        // into("ui") {
+        //     from(project(":main-ui").tasks.named("buildFrontend").map { it.outputs.files }) // Depends on main-ui's buildFrontend task
+        //     // This will copy the contents of main-ui/src/main/frontend/dist into the ui/ directory
+        // }
+
+            // Copy custom bin scripts
+            into("bin") {
+                from("src/main/dist") { // Assuming scripts are placed in src/main/dist/
+                    include("*.sh", "*.bat")
+                    // Ensure .sh script has execute permissions in the archive
+                    // For .sh scripts, it's better to set permissions directly in the file system
+                    // or use a more specific way to set permissions in the archive if needed.
+                    // The 'fileMode' here applies to all files copied in this block.
+                    // We'll ensure the .sh script has execute permissions when created or committed.
+                    // For Gradle, using standard unix permissions for .sh files in src/main/dist is common.
+                }
+                // The applicationName being set means default scripts are zabbix-plus-framework and zabbix-plus-framework.bat
+                // Our custom scripts with these names will replace them.
+                fileMode = "0755".toInt(8) // Set execute permissions for all files copied to bin; primarily for .sh
+            }
+
+            // Copy sample configuration
+            into("config") {
+                from("src/main/resources") { // Assuming application.properties is in core's resources
+                    include("application.properties") // Or application.yml if that's what you use
+                    // Potentially rename to a sample or default if the main one is packaged in JAR
+                    // rename("application.properties", "application.properties.sample")
+                }
+                // You can also create a dedicated sample config file here
+                // from("src/dist/config") // If you have specific sample configs for distribution
+            }
+        }
+    }
 }
 
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-validation")
+    implementation("org.springframework.boot:spring-boot-starter-data-jpa") {
+        exclude(group = "org.hibernate.orm", module = "hibernate-core")
+        // Potentially exclude other hibernate modules like hibernate-entitymanager if necessary
+    }
+    implementation("jakarta.persistence:jakarta.persistence-api:3.1.0") // Explicitly add JPA API
+    // implementation("io.ebean:ebean-spring-boot-starter:13.25.0") // Removed, relying on ebean plugin + main ebean dep + JPA starter for TX/Persistence API
     implementation("jakarta.validation:jakarta.validation-api:3.0.2")
     implementation(project(":database"))
     implementation(project(":plugin-api")) // Add plugin-api as a direct dependency to core
                                          // This ensures it's part of core's classpath and available to plugins
                                          // And also makes it easier to include in the 'lib' dir of the distribution.
     implementation("org.yaml:snakeyaml:2.0")
+
+    // Ebean dependencies
+    implementation("io.ebean:ebean:13.25.0")
+    annotationProcessor("io.ebean:querybean-generator:13.25.0")
+    implementation("io.ebean:ebean-jackson-mapper:13.25.0") // Optional, for Jackson DTO mapping
+    testImplementation("io.ebean:ebean-test:13.25.0")
+
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.mockito:mockito-core:5.10.0")
     testImplementation("org.mockito:mockito-junit-jupiter:5.10.0")
+    testImplementation("com.h2database:h2")
 }
 
 tasks.withType<Test> {
@@ -33,59 +102,6 @@ tasks.withType<CreateStartScripts> {
     // Customize script creation if needed, e.g., defaultJvmOpts
     // For now, we'll create script content manually in a later step
     // but these tasks will generate placeholder scripts.
-}
-
-val distributionName = "zabbix-plus-framework"
-
-application.distributions.named("main") {
-    distributionBaseName.set(distributionName) // Sets the base name for the archive (e.g., zabbix-plus-framework.zip)
-    contents {
-        // Copy core JAR and its dependencies (handled by application plugin by default into its own lib structure)
-        // We need to ensure plugin-api.jar is also there.
-        // The application plugin by default puts runtime dependencies of the 'application' project (core) into 'lib'.
-        // Since :plugin-api is now a dependency of :core, it should be included.
-
-        // Copy plugins
-        into("plugins") {
-            from(project(":example-plugin").tasks.named("jar")) { // Depends on example-plugin's jar task
-                rename { "${it.replace("-${project(":example-plugin").version}", "")}" } // Optional: remove version from plugin jar name
-            }
-            // Add other plugins here similarly
-        }
-
-        // Copy main-ui static assets
-        into("ui") {
-            from(project(":main-ui").tasks.named("buildFrontend").map { it.outputs.files }) // Depends on main-ui's buildFrontend task
-            // This will copy the contents of main-ui/src/main/frontend/dist into the ui/ directory
-        }
-
-        // Copy custom bin scripts
-        into("bin") {
-            from("src/main/dist") { // Assuming scripts are placed in src/main/dist/
-                include("*.sh", "*.bat")
-                // Ensure .sh script has execute permissions in the archive
-                // For .sh scripts, it's better to set permissions directly in the file system
-                // or use a more specific way to set permissions in the archive if needed.
-                // The 'fileMode' here applies to all files copied in this block.
-                // We'll ensure the .sh script has execute permissions when created or committed.
-                // For Gradle, using standard unix permissions for .sh files in src/main/dist is common.
-            }
-            // The applicationName being set means default scripts are zabbix-plus-framework and zabbix-plus-framework.bat
-            // Our custom scripts with these names will replace them.
-            fileMode = 0755 // Set execute permissions for all files copied to bin; primarily for .sh
-        }
-
-        // Copy sample configuration
-        into("config") {
-            from("src/main/resources") { // Assuming application.properties is in core's resources
-                include("application.properties") // Or application.yml if that's what you use
-                // Potentially rename to a sample or default if the main one is packaged in JAR
-                // rename("application.properties", "application.properties.sample")
-            }
-            // You can also create a dedicated sample config file here
-            // from("src/dist/config") // If you have specific sample configs for distribution
-        }
-    }
 }
 
 // Ensure that building the distribution depends on assembling necessary JARs and UI assets

@@ -8,4 +8,5 @@ dependencies {
     // but the API itself is plain Java.
     // Example if ApplicationContext was part of the Plugin interface:
     // api("org.springframework:spring-context:6.1.1") // 'api' so it's on the compile classpath of dependent projects
+    implementation("org.springframework:spring-context")
 }

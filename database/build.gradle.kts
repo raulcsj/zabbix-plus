@@ -8,12 +8,17 @@ dependencies {
 
     implementation("org.springframework.boot:spring-boot-starter-data-jpa") // Provides DataSource, transaction management
     implementation("org.xerial:sqlite-jdbc:3.45.1.0") // SQLite driver (using a recent version)
-    implementation("org.jooq:jooq:3.19.0") // jOOQ library (using a recent version)
+    // Removed jOOQ library: implementation("org.jooq:jooq:3.18.7")
 
-    // Dependencies for jOOQ code generation (will be used later, not in this subtask for execution)
-    // implementation("org.jooq:jooq-meta:3.19.0")
-    // implementation("org.jooq:jooq-codegen:3.19.0")
-    // runtimeOnly("org.xerial:sqlite-jdbc:3.45.1.0") // For codegen if run separately
+    // Removed jOOQ code generation dependencies
+    // jooqGenerator("org.jooq:jooq-meta:3.18.7")
+    // jooqGenerator("org.jooq:jooq-codegen:3.18.7")
+    // jooqGenerator("org.xerial:sqlite-jdbc:3.45.1.0")
+    // jooqGenerator("com.h2database:h2:2.2.224")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
 }
+
+// Removed entire jooq { ... } configuration block
+// Removed sourceSet configuration for jOOQ generated sources
+// Removed compileJava dependency on jOOQ codegen task
